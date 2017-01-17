@@ -34,13 +34,14 @@ bubble_nodes = 64;
 bubble_ideal_radius = 250;
 bubble_min_radius = 30;
 bubble_max_radius = 600;
-bubble_rebound = 0.07;
-bubble_damping = 0.93;
-bubble_tension = 0.8;
-bubble_reactivity = 0.85;
-arr_bubble_displacement[ bubble_nodes - 1 ] = 0;
+bubble_rebound = 0.11;
+bubble_damping = 0.97;
+bubble_displacement_tension = 0.5;
+bubble_velocity_tension = 0.01;
+bubble_reactivity = 0.7;
 
-for( var _i = 0; _i &lt; bubble_nodes; _i++ ) arr_bubble_velocity[ _i ] = random_range( -20, 20 );
+arr_bubble_displacement[ bubble_nodes - 1 ] = 0;
+arr_bubble_velocity[ bubble_nodes - 1 ] = 0;
 
 mouse_vx = 0;
 mouse_vy = 0;
@@ -100,18 +101,19 @@ mouse_vx = lerp( mouse_vx, mouse_x - mouse_previous_x, mouse_momentum );
 mouse_vy = lerp( mouse_vy, mouse_y - mouse_previous_y, mouse_momentum );
 var _mouse_speed = sqrt( mouse_vx*mouse_vx + mouse_vy*mouse_vy );
 
-var _velocity_next_step;
+var _velocity_next_step, _displacement_next_step;
 _velocity_next_step[ bubble_nodes - 1 ] = 0;
+_displacement_next_step[ bubble_nodes - 1 ] = 0;
 
 for( var _i = 0; _i &lt; bubble_nodes; _i++ ) {
     
     var _l = ( _i - 1 + bubble_nodes ) mod bubble_nodes;
     var _n = ( _i + 1 ) mod bubble_nodes;
     
-    var _vel = bubble_damping * lerp( arr_bubble_velocity[ _i ], mean( arr_bubble_velocity[ _l ], arr_bubble_velocity[ _n ] ), bubble_tension );
-    _vel -= bubble_rebound * arr_bubble_displacement[ _i ];
+    var _vel = bubble_damping * lerp( arr_bubble_velocity[ _i ], mean( arr_bubble_velocity[ _l ], arr_bubble_velocity[ _n ] ), bubble_velocity_tension );
+    _vel -= bubble_rebound * lerp( arr_bubble_displacement[ _i ], mean( arr_bubble_displacement[ _l ], arr_bubble_displacement[ _n ] ), bubble_displacement_tension );
     
-    arr_bubble_displacement[ _i ] += _vel;
+    _displacement_next_step[ _i ] = arr_bubble_displacement[ _i ] + _vel;
     _velocity_next_step[ _i ] += _vel;
     
 }
@@ -120,6 +122,7 @@ var _incr = 360 / bubble_nodes;
 for( var _i = 0; _i &lt; bubble_nodes; _i++ ) {
     
     var _l = ( _i - 1 + bubble_nodes ) mod bubble_nodes;
+    var _n = ( _i + 1 ) mod bubble_nodes;
     
     var _bubble_lx = x + lengthdir_x( bubble_ideal_radius + arr_bubble_displacement[ _l ], _l*_incr );
     var _bubble_ly = y + lengthdir_y( bubble_ideal_radius + arr_bubble_displacement[ _l ], _l*_incr );
@@ -132,13 +135,17 @@ for( var _i = 0; _i &lt; bubble_nodes; _i++ ) {
     if ( _t &gt; 0 ) and ( _t &lt;= 1 ) {
         var _vel = _mouse_speed * bubble_reactivity * dot_product_normalised( mouse_x - mouse_previous_x, mouse_y - mouse_previous_y,
                                                                               _bubble_ix - x, _bubble_iy - y );
-        _velocity_next_step[ _l ] += _vel;
+        _velocity_next_step[ _l ] += _vel * 0.5;
         _velocity_next_step[ _i ] += _vel;
+        _velocity_next_step[ _n ] += _vel * 0.5;
     }
     
 }
 
-for( var _i = 0; _i &lt; bubble_nodes; _i++ ) arr_bubble_velocity[ _i ] = _velocity_next_step[ _i ];
+for( var _i = 0; _i &lt; bubble_nodes; _i++ ) {
+    arr_bubble_displacement[ _i ] = _displacement_next_step[ _i ];
+    arr_bubble_velocity[ _i ] = _velocity_next_step[ _i ];
+}
 
 mouse_previous_x = mouse_x;
 mouse_previous_y = mouse_y;
@@ -196,10 +203,13 @@ draw_primitive_begin( pr_trianglefan );
 draw_vertex_colour( x, y, c_ltgray, 1 );
 
 var _incr = 360 / bubble_nodes;
-for( var _i = 0; _i &lt; bubble_nodes _i++ ) {
+for( var _i = 0; _i &lt;= bubble_nodes _i++ ) {
     
-    var _radius = clamp( bubble_ideal_radius + arr_bubble_displacement[ _i ], bubble_min_radius, bubble_max_radius );
-    var _angle = _i*_incr;
+    var _i_real = _i mod bubble_nodes;
+    
+    var _radius = clamp( bubble_ideal_radius + arr_bubble_displacement[ _i_real ], bubble_min_radius, bubble_max_radius );
+    var _angle = _i_real*_incr;
+    
     var _x = x + lengthdir_x( _radius, _angle );
     var _y = y + lengthdir_y( _radius, _angle );
     
@@ -207,7 +217,6 @@ for( var _i = 0; _i &lt; bubble_nodes _i++ ) {
     
 }
 
-draw_vertex_colour( x + bubble_ideal_radius + arr_bubble_displacement[ 0 ], y, make_colour_hsv( 0, 200, 200 ), 1 );
 draw_primitive_end();
 </string>
           </argument>
